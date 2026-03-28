@@ -144,7 +144,9 @@ $(GRUB_BIN): $(GRUB_CFG)
 		exit 1; \
 	fi
 	@echo "Building GRUB standalone EFI with embedded config"
-	$(GRUB_MKSTANDALONE) -O x86_64-efi -o $(GRUB_BIN) "boot/grub/grub.cfg=$(GRUB_CFG)"
+	$(GRUB_MKSTANDALONE) -O x86_64-efi -o $(GRUB_BIN) \
+		--modules="part_gpt fat search search_label linux" \
+		"boot/grub/grub.cfg=$(GRUB_CFG)"
 	@echo "Created GRUB EFI: $(GRUB_BIN)"
 
 # minimal grub.cfg
@@ -166,7 +168,7 @@ $(DISK_IMG): $(GRUB_BIN) $(INITRAMFS) $(BZIMAGE)
 	rm -f $(DISK_IMG)
 	dd if=/dev/zero of=$(DISK_IMG) bs=1M count=64
 	sgdisk --clear --new=1:2048:131038 --typecode=1:ef00 --change-name=1:EFI $(DISK_IMG)
-	mformat -i $(ESP_IMG) -F -T 128991 ::
+	mformat -i $(ESP_IMG) -F -T 128991 -v EFI ::
 	mmd -i $(ESP_IMG) ::/EFI
 	mmd -i $(ESP_IMG) ::/EFI/BOOT
 	mcopy -i $(ESP_IMG) $(GRUB_BIN) ::/EFI/BOOT/BOOTX64.EFI

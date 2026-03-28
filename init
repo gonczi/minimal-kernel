@@ -23,12 +23,12 @@ hostname -F /etc/hostname 2>/dev/null || hostname localhost
 # Configure loopback interface
 ip link set lo up 2>/dev/null || ifconfig lo up
 
-# Detect which console to use
+# Detect which console to use (prefer the kernel's console= parameter)
 CONSOLE_DEV="/dev/console"
-if [ -c /dev/tty0 ]; then
-  CONSOLE_DEV="/dev/tty0"
-elif [ -c /dev/ttyS0 ]; then
-  CONSOLE_DEV="/dev/ttyS0"
+ACTIVE=$(cat /sys/class/tty/console/active 2>/dev/null)
+if [ -n "$ACTIVE" ]; then
+  # Use the last active console (the primary one the kernel selected)
+  for c in $ACTIVE; do CONSOLE_DEV="/dev/$c"; done
 fi
 
 # Explicitly redirect all output to the console
@@ -38,8 +38,12 @@ exec <${CONSOLE_DEV} >${CONSOLE_DEV} 2>&1
 clear
 echo "Welcome to minimal kernel"
 echo "Console device: ${CONSOLE_DEV}"
-echo "Active console: $(cat /sys/class/tty/console/active 2>/dev/null || echo 'unknown')"
 echo
 
-# Start login (prompts for username and password from /etc/passwd and /etc/shadow)
-exec setsid cttyhack login
+# Respawn login on exit/timeout so PID 1 never dies
+while true; do
+  setsid cttyhack login
+  echo ""
+  echo "Login exited, restarting..."
+  sleep 1
+done
