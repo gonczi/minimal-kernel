@@ -1,0 +1,45 @@
+#!/bin/busybox sh
+
+# Mount essential filesystems
+/bin/busybox mount -t proc none /proc
+/bin/busybox mount -t sysfs none /sys
+/bin/busybox mount -t devtmpfs none /dev
+
+# Prepare devpts for proper PTY/TTY handling (job control)
+/bin/busybox mkdir -p /dev/pts
+/bin/busybox mount -t devpts devpts /dev/pts 2>/dev/null || echo "[warn] devpts mount failed"
+
+# Create necessary device nodes if devtmpfs is not available
+[ -c /dev/console ] || /bin/busybox mknod /dev/console c 5 1
+[ -c /dev/null ] || /bin/busybox mknod /dev/null c 1 3
+[ -c /dev/tty ] || /bin/busybox mknod /dev/tty c 5 0
+
+# Set up busybox symlinks (suppress errors for missing /usr directories)
+/bin/busybox --install -s
+
+# Set hostname
+hostname -F /etc/hostname 2>/dev/null || hostname localhost
+
+# Configure loopback interface
+ip link set lo up 2>/dev/null || ifconfig lo up
+
+# Detect which console to use
+CONSOLE_DEV="/dev/console"
+if [ -c /dev/tty0 ]; then
+  CONSOLE_DEV="/dev/tty0"
+elif [ -c /dev/ttyS0 ]; then
+  CONSOLE_DEV="/dev/ttyS0"
+fi
+
+# Explicitly redirect all output to the console
+exec <${CONSOLE_DEV} >${CONSOLE_DEV} 2>&1
+
+# Clear screen and show boot message
+clear
+echo "Welcome to minimal kernel"
+echo "Console device: ${CONSOLE_DEV}"
+echo "Active console: $(cat /sys/class/tty/console/active 2>/dev/null || echo 'unknown')"
+echo
+
+# Start login (prompts for username and password from /etc/passwd and /etc/shadow)
+exec setsid cttyhack login

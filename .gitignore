@@ -1,0 +1,10 @@
+# Downloaded source archives
+linux-*.tar.xz
+busybox-*.tar.bz2
+
+# Extracted source trees
+linux-*/
+busybox-*/
+
+# Build output
+build/
